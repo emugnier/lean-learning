@@ -62,5 +62,43 @@ instance : OfNat Pos (n+1) where
       | n+1 => Pos.succ (natPlusOne n)
     natPlusOne n
 
-def main : IO Unit :=
-  IO.println s!"Hello, {hello}!"
+def hashPos : Pos → UInt64
+| Pos.one => 0
+| Pos.succ n => mixHash 1 (hashPos n)
+
+instance : Hashable Pos where
+  hash := hashPos
+
+structure NonEmptyList (α : Type) : Type where
+  head : α
+  tail : List α
+
+instance [Hashable α] : Hashable (NonEmptyList α) where
+ hash xs := mixHash (hash xs.head) (hash xs.tail)
+
+inductive BinTree (α : Type) where
+| leaf : BinTree α
+| branch: BinTree α → α -> BinTree α → BinTree α
+
+def eqBinTree [BEq α] : BinTree α -> BinTree α → Bool
+| BinTree.leaf, BinTree.leaf => true
+| BinTree.branch l x r, BinTree.branch l2 x2 r2 =>
+x == x2 && eqBinTree l l2 && eqBinTree r r2
+| _, _ => false
+
+instance [BEq α] : BEq (BinTree α) where
+ beq := eqBinTree
+
+def hashBinTree [Hashable α] : BinTree α → UInt64
+| BinTree.leaf => 0
+| BinTree.branch l x r =>
+  mixHash (hashBinTree l)
+        (mixHash (hash x)
+          (hashBinTree r))
+
+instance [Hashable α] : Hashable (BinTree α) where
+ hash := hashBinTree
+
+instance : Append (NonEmptyList α) where
+ append xs ys :=
+  { head := xs.head, tail := xs.tail ++ ys.head :: ys.tail}
